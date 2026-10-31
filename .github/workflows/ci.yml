@@ -1,0 +1,86 @@
+name: Python CI with uv
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  run-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run Python script and build gallery
+        shell: bash
+        run: |
+          set -o pipefail
+          shopt -s nullglob
+          mkdir -p output
+
+          uv run src/sdp_lab4/main.py
+
+          for f in *.png; do
+            mv "$f" output/
+          done
+
+          {
+            printf '<!doctype html><html lang="ru"><head><meta charset="utf-8">'
+            printf '<title>SDP Lab4 — Graphs</title>'
+            printf '<style>'
+            printf 'body{font-family:system-ui,sans-serif;margin:24px;color:#222;}'
+            printf 'h1{margin:0 0 16px;}'
+            printf '.grid{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;}'
+            printf 'figure{margin:0;text-align:center;}'
+            printf 'img{max-width:480px;width:100%%;border:1px solid #ccc;border-radius:6px;}'
+            printf 'figcaption{font-size:13px;color:#555;margin-top:4px;}'
+            printf '</style></head><body>'
+            printf '<h1>Сгенерированные графики</h1>'
+            printf '<div class="grid">'
+            for img in $(find output -maxdepth 1 -name '*.png' | sort); do
+              b=$(basename "$img")
+              printf '<figure><img src="%s" alt="%s"><figcaption>%s</figcaption></figure>' "$b" "$b" "$b"
+            done
+            printf '</div></body></html>'
+          } > output/index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: output
+
+  deploy:
+    if: always()
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: run-project
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
