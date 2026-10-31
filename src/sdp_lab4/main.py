@@ -148,5 +148,5 @@ for style in ['ggplot', 'dark_background', 'bmh']:
         plt.style.use('default')
         print(f'Стиль "{style}" недоступен — применён default')
     draw_grid_2x2()
-    save_fig('plog_8_' + style + '.png')
+    save_fig('plot_8_' + style + '.png')
 plt.style.use('default')
